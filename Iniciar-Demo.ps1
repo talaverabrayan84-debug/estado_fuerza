@@ -19,10 +19,13 @@ if (!(Test-Path -LiteralPath $venvPython)) {
     & $PythonPath -m venv (Join-Path $projectRoot '.venv')
     if ($LASTEXITCODE -ne 0) { throw 'No se pudo crear el entorno de Python.' }
 }
-if (!(Test-Path -LiteralPath (Join-Path $runtimeDir 'python-instalado'))) {
+$pythonLock = Join-Path $projectRoot 'backend\requirements-lock.txt'
+$pythonHash = (Get-FileHash -LiteralPath $pythonLock -Algorithm SHA256).Hash
+$pythonMarker = Join-Path $runtimeDir 'python-instalado'
+if (!(Test-Path -LiteralPath $pythonMarker) -or (Get-Content -LiteralPath $pythonMarker -Raw).Trim() -ne $pythonHash) {
     & $venvPython -m pip install -r (Join-Path $projectRoot 'backend\requirements-lock.txt')
     if ($LASTEXITCODE -ne 0) { throw 'No se pudieron instalar las dependencias de Python.' }
-    Set-Content -LiteralPath (Join-Path $runtimeDir 'python-instalado') -Value 'ok'
+    Set-Content -LiteralPath $pythonMarker -Value $pythonHash
 }
 $frontendDir = Join-Path $projectRoot 'frontend'
 if (!(Test-Path -LiteralPath (Join-Path $frontendDir 'node_modules'))) {

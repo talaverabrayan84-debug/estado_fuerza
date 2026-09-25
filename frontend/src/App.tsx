@@ -1,8 +1,12 @@
-import {createContext, FormEvent, useContext, useEffect, useState} from 'react';
-import {Link, NavLink, Navigate, Route, Routes, useNavigate, useParams} from 'react-router-dom';
+import {createContext, FormEvent, useContext, useEffect, useRef, useState} from 'react';
+import {Link, NavLink, Navigate, Route, Routes, useLocation, useNavigate, useParams} from 'react-router-dom';
 import {ArrowLeft, ArrowRight, Bell, Check, ChevronLeft, ChevronRight, CircleAlert, ClipboardCheck, FileText, LogOut, Plus, Search, ShieldCheck, Users} from 'lucide-react';
-import {api, demo, setDemoToken, supabase} from './api';
+import {api, configError, demo, setDemoToken, supabase} from './api';
 import {Catalogs, Evaluation, Person, Role, roleLabels, states, User} from './types';
+import {Calendar,SessionDetail} from './pages/Training';
+import {Journal} from './pages/Journal';
+import {Imports} from './pages/Imports';
+import {useData} from './components';
 
 const Auth = createContext<User|null>(null);
 function useUser(){return useContext(Auth)!;}
@@ -12,41 +16,42 @@ function initials(value:string){return value.split(' ').filter(Boolean).slice(0,
 function Badge({value}:{value:string}){return <span className={'badge status-'+value.toLowerCase().replaceAll(' ','-')}>{value}</span>;}
 function ErrorBox({message}:{message:string}){return message?<div role="alert" className="error"><CircleAlert size={18}/><span>{message}</span></div>:null;}
 function Loading(){return <div className="loading" role="status">Cargando información…</div>;}
-function useData<T>(path:string){
- const [data,setData]=useState<T|null>(null),[error,setError]=useState(''),[loading,setLoading]=useState(true),[revision,setRevision]=useState(0);
- useEffect(()=>{let live=true;setLoading(true);setError('');setData(null);api<T>(path).then(d=>{if(live)setData(d);}).catch(e=>{if(live)setError(e.message);}).finally(()=>{if(live)setLoading(false);});return()=>{live=false;};},[path,revision]);
- return {data,error,loading,reload:()=>setRevision(n=>n+1)};
-}
 
 export default function App(){
+ const location=useLocation();
  const [user,setUser]=useState<User|null>(null),[ready,setReady]=useState(false);
+ const authGeneration=useRef(0);
  useEffect(()=>{
   let mounted=true;
-  const load=()=>api<User>('/me').then(u=>{if(mounted)setUser(u);}).catch(()=>{if(mounted)setUser(null);}).finally(()=>{if(mounted)setReady(true);});
+  const load=()=>{const generation=++authGeneration.current;return api<User>('/me').then(u=>{if(mounted&&generation===authGeneration.current)setUser(u);}).catch(()=>{if(mounted&&generation===authGeneration.current)setUser(null);}).finally(()=>{if(mounted&&generation===authGeneration.current)setReady(true);});};
   load();
-  const subscription=supabase?.auth.onAuthStateChange((event)=>{if(event==='SIGNED_OUT'){setUser(null);setReady(true);}else if(event==='TOKEN_REFRESHED'){queueMicrotask(load);}});
+  const subscription=supabase?.auth.onAuthStateChange((event)=>{if(event==='SIGNED_OUT'){authGeneration.current++;setUser(null);setReady(true);}else if(['SIGNED_IN','TOKEN_REFRESHED','USER_UPDATED'].includes(event)){const generation=authGeneration.current;queueMicrotask(()=>{if(mounted&&generation===authGeneration.current)void load();});}});
   return()=>{mounted=false;subscription?.data.subscription.unsubscribe();};
  },[]);
- async function logout(){try{if(demo)await api('/demo/session',{method:'DELETE'});else await supabase?.auth.signOut();}finally{setDemoToken('');setUser(null);}}
+ async function logout(){authGeneration.current++;setReady(false);setUser(null);try{if(demo)await api('/demo/session',{method:'DELETE'});else await supabase?.auth.signOut({scope:'local'});}catch{/* La sesión local se limpia aunque el servicio no responda. */}finally{authGeneration.current++;setDemoToken('');setUser(null);setReady(true);}}
  if(!ready)return <Loading/>;
- if(!user)return <Login onLogin={setUser}/>;
+ if(!user)return <Login onLogin={u=>{authGeneration.current++;setUser(u);}}/>;
  const worker=user.rol==='trabajador';
  return <Auth.Provider value={user}><div className="shell">
   <aside className="sidebar"><Link className="brand" to="/"><span className="brand-icon"><ShieldCheck size={25}/></span><span>Estado de Fuerza<small>Gestión de capacitación</small></span></Link>
    <div className="sidebar-label">ESPACIO DE TRABAJO</div>
-   <nav aria-label="Navegación principal">{worker?<NavLink to={`/personal/${user.personal_id}`}><FileText size={20}/>Mi expediente</NavLink>:<><NavLink to="/estado-fuerza"><Users size={20}/>Estado de fuerza</NavLink><NavLink to="/alertas"><Bell size={20}/>Vigencia y alertas</NavLink></>}</nav>
-   <div className="sidebar-note"><ClipboardCheck size={24}/><strong>Competencias básicas</strong><p>Consulta la vigencia y conserva el historial de cada evaluación.</p><span>Primera fase</span></div>
+   <nav aria-label="Navegación principal">{worker?<NavLink end to={`/personal/${user.personal_id}`}><FileText size={20}/>Mi expediente</NavLink>:<><NavLink to="/estado-fuerza"><Users size={20}/>Estado de fuerza</NavLink><NavLink to="/alertas"><Bell size={20}/>Vigencia y alertas</NavLink></>}<NavLink to="/cursos"><ClipboardCheck size={20}/>Calendario de cursos</NavLink>{worker&&<NavLink to={`/personal/${user.personal_id}/bitacora`}><FileText size={20}/>Mi bitácora</NavLink>}{user.rol==='admin'&&<NavLink to="/carga-masiva"><Plus size={20}/>Carga masiva</NavLink>}</nav>
+   <div className="sidebar-note"><ClipboardCheck size={24}/><strong>Formación y seguimiento</strong><p>Organiza los cursos y consulta los avances de capacitación del personal.</p><span>Segunda fase</span></div>
    <div className="account"><div className="avatar">{initials(roleLabels[user.rol])}</div><div><strong>{roleLabels[user.rol]}</strong><small title={user.email}>{user.email}</small></div><button aria-label="Cerrar sesión" title="Cerrar sesión" className="icon-button" onClick={logout}><LogOut size={19}/></button></div>
   </aside>
   <div className="main-area"><header className="topbar"><span>Sistema de Gestión del Estado de Fuerza</span><span className="topbar-label">{roleLabels[user.rol]}</span></header>
    {demo&&<div className="demo-banner"><CircleAlert size={16}/><span>Demostración local · Datos ficticios. Los cambios se reinician al detener el servicio.</span></div>}
-   <main><Routes>
+   <main><Routes key={`${user.id}:${user.rol}:${location.pathname}`}>
     <Route path="/" element={<Navigate to={worker?`/personal/${user.personal_id}`:'/estado-fuerza'} replace/>}/>
     <Route path="/estado-fuerza" element={worker?<Navigate to="/" replace/>:<Roster/>}/>
     <Route path="/alertas" element={worker?<Navigate to="/" replace/>:<Roster alerts/>}/>
     <Route path="/personal/nuevo" element={user.rol==='admin'?<PersonForm/>:<Navigate to="/" replace/>}/>
     <Route path="/personal/:id/editar" element={user.rol==='admin'?<EditPerson/>:<Navigate to="/" replace/>}/>
     <Route path="/personal/:id" element={<Detail/>}/>
+    <Route path="/cursos" element={<Calendar user={user}/>}/>
+    <Route path="/cursos/sesiones/:id" element={<SessionDetail user={user}/>}/>
+    <Route path="/personal/:id/bitacora" element={<Journal user={user}/>}/>
+    <Route path="/carga-masiva" element={user.rol==='admin'?<Imports/>:<Navigate to="/" replace/>}/>
     <Route path="*" element={<Navigate to="/" replace/>}/>
    </Routes></main>
   </div></div></Auth.Provider>;
@@ -59,9 +64,9 @@ function Login({onLogin}:{onLogin:(u:User)=>void}){
   else{if(!supabase)throw new Error('Falta configurar la conexión con Supabase. Consulte la guía de instalación.'); const {error}=await supabase.auth.signInWithPassword({email,password});if(error)throw new Error('No se pudo iniciar sesión. Verifique sus credenciales y vuelva a intentar.');}
   onLogin(await api<User>('/me'));
  }catch(e){setError((e as Error).message);}finally{setBusy(false);}}
- return <div className="login-page"><section className="login-context"><div className="brand"><span className="brand-icon"><ShieldCheck size={30}/></span><span>Estado de Fuerza<small>Gestión de capacitación</small></span></div><div><span className="eyebrow light">SEGUIMIENTO DE COMPETENCIAS</span><h1>La información de tu personal,<br/>en un mismo lugar.</h1><p>Consulta expedientes, registra evaluaciones y anticipa el vencimiento de las competencias básicas.</p></div><span className="login-footer">Estado de fuerza · Primera fase</span></section><section className="login-form"><div className="login-form-inner"><span className="eyebrow">ACCESO AL SISTEMA</span><h2>{demo?'Explora la primera fase':'Iniciar sesión'}</h2><p className="muted">{demo?'Selecciona un perfil para recorrer el sistema con datos ficticios.':'Ingresa con la cuenta habilitada por tu administrador.'}</p><form onSubmit={submit}>
+ return <div className="login-page"><section className="login-context"><div className="brand"><span className="brand-icon"><ShieldCheck size={30}/></span><span>Estado de Fuerza<small>Gestión de capacitación</small></span></div><div><span className="eyebrow light">SEGUIMIENTO DE COMPETENCIAS</span><h1>La información de tu personal,<br/>en un mismo lugar.</h1><p>Consulta expedientes, organiza cursos y da seguimiento a la capacitación del personal.</p></div><span className="login-footer">Estado de fuerza · Segunda fase</span></section><section className="login-form"><div className="login-form-inner"><span className="eyebrow">ACCESO AL SISTEMA</span><h2>{demo?'Explora el sistema':'Iniciar sesión'}</h2><p className="muted">{demo?'Selecciona un perfil para recorrer el sistema con datos ficticios.':'Ingresa con la cuenta habilitada por tu administrador.'}</p><form onSubmit={submit}>
   {demo?<label>Perfil de demostración<select value={role} onChange={e=>setRole(e.target.value as Role)}>{Object.entries(roleLabels).map(([k,v])=><option key={k} value={k}>{v}</option>)}</select></label>:<><label>Correo electrónico<input type="email" autoComplete="username" value={email} onChange={e=>setEmail(e.target.value)} required/></label><label>Contraseña<input type="password" autoComplete="current-password" value={password} onChange={e=>setPassword(e.target.value)} required/></label></>}
-  <ErrorBox message={error}/><button className="button primary wide" disabled={busy}>{busy?'Ingresando…':demo?'Entrar a la demostración':'Iniciar sesión'}<ArrowRight size={18}/></button></form>
+  <ErrorBox message={configError||error}/><button className="button primary wide" disabled={busy||Boolean(configError)}>{busy?'Ingresando…':demo?'Entrar a la demostración':'Iniciar sesión'}<ArrowRight size={18}/></button></form>
   {demo?<p className="footnote">Entorno de prueba sin conexión a Supabase. No captures información real.</p>:<p className="footnote">Si no tienes acceso, contacta al administrador del sistema.</p>}
  </div></section></div>;
 }
@@ -96,6 +101,7 @@ function Detail(){
   {success&&<div className="success" role="status"><Check size={18}/>{success}</div>}
   <div className="detail-grid"><section className="surface"><h2>Datos del personal</h2><dl className="facts">{[['Corporación',p.corporacion],['Adscripción',p.adscripcion],['CUIP',p.cuip],['CURP',p.curp],['Cargo',p.cargo],['Grado',p.grado],['Sexo',p.sexo==='H'?'Hombre':p.sexo==='M'?'Mujer':null],['Situación',p.estatus]].map(([label,value])=><div key={label}><dt>{label}</dt><dd>{value||'Sin registrar'}</dd></div>)}</dl></section><section className="surface vigencia-card"><span className="eyebrow">COMPETENCIAS BÁSICAS</span><Badge value={p.estatus_vigencia}/><h2>{p.fecha_vencimiento?formatDate(p.fecha_vencimiento):'Sin vigencia acreditada'}</h2><p>{p.fecha_vencimiento?'Fecha de vencimiento de la evaluación actual.':'Registra una evaluación aprobada para acreditar la vigencia.'}</p><dl><dt>Certificación</dt><dd>{formatDate(p.fecha_certificacion)}</dd></dl>{user.rol!=='trabajador'&&<button className="button primary wide" onClick={()=>setShowForm(!showForm)}><Plus size={18}/>{showForm?'Cerrar captura':'Registrar evaluación'}</button>}</section></div>
   {showForm&&<CompetenciaForm personId={id!} onCancel={()=>setShowForm(false)} onSaved={()=>{setShowForm(false);setSuccess('Evaluación registrada. El historial y la vigencia se actualizaron.');person.reload();history.reload();}}/>}
+  <div className="action-row phase-form"><Link className="button secondary" to={`/personal/${id}/bitacora`}><FileText size={18}/>Consultar bitácora y cursos</Link></div>
   <section className="table-panel history"><div className="panel-heading"><h2>Historial de evaluaciones</h2><span className="muted">{history.data?.length??0} registros</span></div><ErrorBox message={history.error}/>{history.loading?<Loading/>:history.data?.length?<div className="table-scroll"><table><thead><tr><th>Fecha de certificación</th><th>Institución evaluadora</th><th>Folio</th><th>Resultado</th><th>Registro</th></tr></thead><tbody>{history.data.map(e=><tr key={e.id}><td>{formatDate(e.fecha_certificacion)}</td><td>{e.institucion_evaluadora}</td><td>{e.folio}</td><td><Badge value={e.resultado==='aprobado'?'Aprobado':'No aprobado'}/></td><td>{e.activo?'Actual':'Histórico'}</td></tr>)}</tbody></table></div>:<div className="empty"><ClipboardCheck size={30}/><h3>Aún no hay evaluaciones</h3><p>El historial aparecerá después de registrar la primera evaluación.</p></div>}</section></>;
 }
 

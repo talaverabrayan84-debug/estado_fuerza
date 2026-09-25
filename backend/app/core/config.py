@@ -1,3 +1,5 @@
+import base64
+import json
 import os
 from dataclasses import dataclass
 from dotenv import load_dotenv
@@ -17,5 +19,18 @@ class Settings:
             raise RuntimeError('La demostración solo está permitida en desarrollo local.')
         if not self.demo and (not self.supabase_url.startswith('https://') or not self.supabase_key):
             raise RuntimeError('Configure SUPABASE_URL y SUPABASE_ANON_KEY antes de iniciar.')
+        # This inspects the key class only, never authenticates a JWT. User JWTs
+        # are validated by Supabase Auth. Reject accidental privileged API keys.
+        if not self.demo:
+            privileged = self.supabase_key.startswith('sb_secret_')
+            parts = self.supabase_key.split('.')
+            if len(parts) == 3:
+                try:
+                    payload = json.loads(base64.urlsafe_b64decode(parts[1] + '=' * (-len(parts[1]) % 4)))
+                    privileged = privileged or (isinstance(payload, dict) and payload.get('role') == 'service_role')
+                except (ValueError, UnicodeError):
+                    pass
+            if privileged:
+                raise RuntimeError('Use exclusivamente la clave pública anon o publishable de Supabase.')
 
 settings = Settings()

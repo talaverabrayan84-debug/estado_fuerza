@@ -1,8 +1,9 @@
 import httpx
 from fastapi import HTTPException
 from app.core.config import settings
+from app.db.training import TrainingRepository
 
-class SupabaseRepository:
+class SupabaseRepository(TrainingRepository):
     """Every request carries the caller JWT; never a service_role key."""
     def __init__(self, token: str):
         self.headers = {'apikey': settings.supabase_key, 'Authorization': f'Bearer {token}'}
@@ -20,6 +21,8 @@ class SupabaseRepository:
                 code = None
             if code == '23505':
                 raise HTTPException(409, 'Ya existe el identificador o la evaluación registrada.')
+            if code == 'P0001':
+                raise HTTPException(409, r.json().get('message', 'Los datos cambiaron. Repita la operación.'))
             if code in ('23503', '23514', '22023'):
                 raise HTTPException(422, 'Verifique los datos, catálogos y fechas del registro.')
             if r.status_code in (401, 403) or code == '42501':

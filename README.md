@@ -1,8 +1,8 @@
 # Sistema de Gestión del Estado de Fuerza
 
-Primera implementación de la fase 1 definida en `Arquitectura_Sistema_Estado_de_Fuerza.docx`, versión 1.0. Incluye React 18 + TypeScript + Tailwind, FastAPI y una migración PostgreSQL para Supabase.
+Implementación de las fases 1 y 2 definidas en `Arquitectura_Sistema_Estado_de_Fuerza.docx`, versión 1.0. Incluye React 18 + TypeScript + Tailwind, FastAPI y migraciones PostgreSQL para Supabase.
 
-La demostración local permite recorrer los tres perfiles y probar el flujo completo con datos ficticios. La conexión de producción está implementada, pero requiere crear el proyecto de Supabase, aplicar la migración, cargar los catálogos y habilitar las cuentas. No se ha desplegado en internet.
+La demostración local permite recorrer los tres perfiles con datos ficticios. El proyecto de staging de Supabase ya contiene las migraciones, los catálogos ficticios y las políticas RLS; sus 43 comprobaciones de estructura y seguridad fueron aprobadas. Falta crear y vincular las cuentas ficticias de Authentication y desplegar la API y la interfaz en Vercel.
 
 ## Funciones incluidas
 
@@ -15,6 +15,13 @@ La demostración local permite recorrer los tres perfiles y probar el flujo comp
 - Panel con estados Vigente, Por vencer, Vencida, Sin registro y No aprobado.
 - Filtros por nombre/CUIP/CURP, corporación, situación y vigencia; paginación.
 - Políticas RLS, catálogos separados y auditoría de cambios.
+- Calendario mensual y agenda, catálogo de cursos y programación de sesiones.
+- Inscripciones, control de cupo, estados de participación y calificaciones.
+- Bitácora del trabajador, con captura y edición de actividades propias.
+- Evidencia privada por actividad: PDF, PNG o JPG, hasta 2 MB.
+- Importación CSV/XLSX de personal y competencias básicas: plantillas, revisión por fila, confirmación transaccional y reporte de resultados.
+
+Consulta [el alcance y recorrido de la fase 2](docs/FASE2.md).
 
 ## Recorrer la demostración en Windows
 
@@ -38,7 +45,7 @@ Sigue [la guía de Supabase](docs/CONFIGURACION_SUPABASE.md). Contiene la migrac
 backend/
   app/core/          Configuración y autorización
   app/db/            Adaptadores Supabase y demostración
-  app/services/      Reglas de vigencia
+  app/services/      Vigencia, calendario y validación de importaciones
   app/schemas.py     Validación de entradas
   app/main.py        API REST
   tests/             Pruebas de API y negocio
@@ -76,6 +83,8 @@ La documentación OpenAPI está en `http://127.0.0.1:8000/docs`. `requirements-l
 
 ## Límite de esta entrega
 
-Calendario, bitácora, importación masiva y documentos adjuntos corresponden a la fase 2. Notificaciones automáticas, cron, gráficas avanzadas y reportes exportables corresponden a la fase 3. El panel de fase 1 consulta la vigencia en tiempo real y no requiere cron.
+La fase 2 incluye calendario, bitácora, evidencias e importación de las dos entidades ya implementadas: personal y competencias básicas. El registro especializado de formación inicial y otras certificaciones aún requiere su módulo propio; clasificar un curso como formación inicial no crea ese expediente de certificación.
+
+Notificaciones automáticas, cron, gráficas y reportes generales corresponden a la fase 3. El reporte CSV de una importación forma parte de la fase 2. La vigencia y el estado de las sesiones se calculan al consultar.
 
 Consulta [el análisis y las decisiones de implementación](docs/ANALISIS_ARQUITECTURA.md) y [los resultados de validación](docs/VALIDACION.md).

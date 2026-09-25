@@ -12,6 +12,10 @@ Abre el editor SQL del proyecto y ejecuta el archivo completo `supabase/migratio
 
 La migración crea personal, usuarios, competencias, catálogos, configuración, auditoría, RLS y funciones. No crea cuentas ni inserta personal ficticio.
 
+Después ejecuta `supabase/migrations/002_fase2.sql` y `supabase/migrations/003_evidencias.sql`, en ese orden y una sola vez. Si ya aplicaste la fase 1, ejecuta únicamente estas dos migraciones nuevas. No vuelvas a ejecutar `001_fase1.sql` sobre las tablas existentes.
+
+La segunda migración agrega cursos, sesiones, inscripciones, bitácoras, cargas y sus permisos. La tercera usa Supabase Storage y crea el bucket privado `bitacora-evidencias`, con límite de 2 MB y tipos PDF/PNG/JPG, además de las políticas por propietario y personal autorizado. Conserva el bucket privado. La API descarga los archivos con el JWT del usuario y no publica URLs abiertas.
+
 ## 3 Cargar catálogos reales
 
 En el editor de tablas o en SQL, agrega las corporaciones, cargos y grados aprobados por el área responsable. Por ejemplo, sustituye el texto antes de ejecutar:
@@ -95,6 +99,8 @@ Esta entrega no publica el sistema. Cuando se decida desplegar, utiliza dos proy
 - **Frontend:** directorio raíz `frontend`, preset Vite, comando `npm run build`, salida `dist`. Completa las variables `VITE_*` antes de compilar. `VITE_API_URL` debe terminar en `/api` y apuntar al backend público.
 - **Backend:** directorio raíz `backend`, FastAPI, punto de entrada `main.py`. Configura `APP_ENV=production`, `DEMO_MODE=false`, URL y clave pública Supabase. `FRONTEND_ORIGINS` debe contener exactamente las URLs HTTPS autorizadas del frontend, separadas por comas.
 
-Supabase debe permitir los orígenes de autenticación de los entornos elegidos. Mantén proyectos separados para desarrollo y producción. No configures cron en esta fase. Verifica el inicio de sesión real, permisos, inserción, renovación y consulta después del despliegue.
+Supabase debe permitir los orígenes de autenticación de los entornos elegidos. Mantén proyectos separados para desarrollo y producción. No configures cron en esta fase. Verifica el inicio de sesión real, permisos, inserción, renovación, importación y descarga de evidencias después del despliegue. Las cargas están limitadas a 200 filas y 2 MB; valida los tiempos de respuesta y límites del plan elegido antes de trabajar con volúmenes reales.
+
+Prueba el control de cupo con dos peticiones simultáneas para el último lugar. Prueba una carga cuya segunda fila entre en conflicto después de revisar: la primera fila tampoco debe guardarse. Prueba la descarga de una evidencia con su propietario, con capacitación y con un segundo trabajador; este último debe recibir una denegación.
 
 Referencias: [RLS de Supabase](https://supabase.com/docs/guides/database/postgres/row-level-security) y [FastAPI en Vercel](https://vercel.com/docs/frameworks/backend/fastapi).

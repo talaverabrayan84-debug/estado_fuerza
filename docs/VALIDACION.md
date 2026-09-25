@@ -1,5 +1,7 @@
 # Validación de la fase 1
 
+Este documento conserva los resultados originales de la fase 1. Para la ampliación actual consulta `FASE2.md`, `VALIDACION_FASE2.md` y `REVISION_SEGURIDAD_FASE2.md`.
+
 La API y las reglas de negocio superaron 20 pruebas automatizadas. La migración se ejecutó en PostgreSQL local mediante PGlite y superó 28 verificaciones de SQL y permisos RLS. La interfaz pasó la compilación TypeScript y la compilación de producción de Vite.
 
 ## Casos comprobados

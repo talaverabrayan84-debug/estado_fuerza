@@ -6,13 +6,19 @@ from fastapi.responses import JSONResponse
 from app.core.config import settings
 from app.core.security import Context, context, allow, own_or_staff, local_demo, new_demo_session, demo_sessions
 from app.schemas import PersonalIn, CompetenciaIn, DemoSession
+from app.core.upload_limits import UploadBodyLimit
 
 @asynccontextmanager
 async def lifespan(app):
     settings.validate()
     yield
 
-app = FastAPI(title='Estado de Fuerza · Fase 1', version='0.1.0', lifespan=lifespan)
+app = FastAPI(title='Estado de Fuerza · Fase 2', version='0.2.0', lifespan=lifespan)
+from app.training_routes import router as training_router
+app.include_router(training_router)
+from app.evidence import router as evidence_router
+app.include_router(evidence_router)
+app.add_middleware(UploadBodyLimit)
 app.add_middleware(CORSMiddleware, allow_origins=list(settings.origins),
                    allow_methods=['GET','POST','PUT','DELETE'], allow_headers=['Authorization','Content-Type'])
 

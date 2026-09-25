@@ -1,5 +1,7 @@
 -- Ejecutar una vez en un proyecto Supabase vacío (PostgreSQL 15+).
 begin;
+-- Permisos explícitos también cuando se desactiva la exposición automática.
+grant usage on schema public to authenticated;
 create schema if not exists private;
 revoke all on schema private from public;
 grant usage on schema private to authenticated;

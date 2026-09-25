@@ -5,6 +5,7 @@ from threading import RLock
 from uuid import uuid4
 from fastapi import HTTPException
 from app.services.vigencia import hoy_local, detalle_vigencia
+from app.db.demo_training import DemoTraining, initialize_training, timestamp
 
 CORP_A = '10000000-0000-0000-0000-000000000001'
 CORP_B = '10000000-0000-0000-0000-000000000002'
@@ -25,7 +26,7 @@ class DemoStore:
             pid = WORKER_ID if i == 0 else str(uuid4())
             self.people[pid] = {'id': pid, 'cuip': f'DEMO{i+1:05}', 'curp': None, 'nombre_completo': name,
                 'sexo': None, 'corporacion_id': CORP_A if i < 4 else CORP_B,
-                'adscripcion': 'Unidad de demostración', 'cargo_id': None, 'grado_id': None, 'estatus': 'activo'}
+                'adscripcion': 'Unidad de demostración', 'cargo_id': None, 'grado_id': None, 'estatus': 'activo', 'updated_at': timestamp()}
             if i == 4: continue
             end = hoy_local() + timedelta(days=[-25, 35, 75, 400, 0, 600][i])
             cert = end.replace(year=end.year - 3, day=min(end.day, 28))
@@ -33,7 +34,9 @@ class DemoStore:
                 'institucion_evaluadora': 'Institución de prueba', 'folio': f'DEMO-CB-{i+1:03}',
                 'resultado': 'no_aprobado' if i == 5 else 'aprobado', 'activo': True})
 
-class DemoRepository:
+        initialize_training(self)
+
+class DemoRepository(DemoTraining):
     def __init__(self, store, user):
         self.store, self.user = store, user
 
@@ -75,7 +78,7 @@ class DemoRepository:
                 if other['id'] != person_id and any(data.get(k) and data[k] == other.get(k) for k in ('cuip','curp')):
                     raise HTTPException(409, 'Ya existe el identificador registrado.')
             pid = person_id or str(uuid4())
-            self.store.people[pid] = {**deepcopy(data), 'id': pid}
+            self.store.people[pid] = {**deepcopy(data), 'id': pid, 'updated_at': timestamp()}
             return deepcopy(self.store.people[pid])
 
     def history(self, person_id):

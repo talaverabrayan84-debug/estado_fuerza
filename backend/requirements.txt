@@ -4,3 +4,6 @@ httpx>=0.28,<1
 pydantic>=2.10,<3
 python-dotenv>=1,<2
 tzdata>=2025.1
+openpyxl>=3.1.5,<4
+python-multipart>=0.0.20,<1
+defusedxml>=0.7.1,<1
