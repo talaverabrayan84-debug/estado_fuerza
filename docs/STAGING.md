@@ -22,6 +22,12 @@ El objetivo es probar el flujo real de autenticación, API y almacenamiento con 
 | Punto de entrada / salida | `main.py` exporta `app` | `npm run build`, salida `dist` |
 | Persistencia | Supabase | Supabase por la API |
 
+Despliegues actuales:
+
+- API: `https://estado-fuerza-api-staging.vercel.app`
+- Interfaz: `https://estado-fuerza-web-staging.vercel.app`
+- La API tiene `FRONTEND_ORIGINS` configurado con el dominio estable de la interfaz y fue redeployada después del cambio.
+
 FastAPI utiliza un punto de entrada soportado por Vercel. No hay un servidor persistente ni almacenamiento local durable para datos de negocio. Consulta la [documentación de FastAPI en Vercel](https://vercel.com/docs/frameworks/backend/fastapi).
 
 Configurar en la API:
@@ -64,4 +70,4 @@ La separación de entornos mantiene los datos de prueba fuera de una futura base
 
 ## Estado actual
 
-El 24 de septiembre de 2026 se aplicaron las tres migraciones y el seed ficticio en `estado-fuerza-staging` (`oeauqqrjftikgzrwpyrk`). Las 43 comprobaciones de `verify_staging.sql` devolvieron `true`. El siguiente paso es crear las cuentas ficticias de Authentication y vincularlas con `public.usuarios` antes de configurar Vercel.
+El 24 de septiembre de 2026 se aplicaron las tres migraciones y el seed ficticio en `estado-fuerza-staging` (`oeauqqrjftikgzrwpyrk`). Las 43 comprobaciones de `verify_staging.sql` devolvieron `true`. Las siete cuentas ficticias de Authentication ya están creadas, confirmadas y vinculadas con `public.usuarios`. La API y la interfaz están desplegadas en Vercel con `DEMO_MODE=false`; falta ejecutar la aceptación integrada desde la URL pública y configurar el dominio estable en la sección URL Configuration de Supabase Auth si se desea probar redirecciones OAuth.
