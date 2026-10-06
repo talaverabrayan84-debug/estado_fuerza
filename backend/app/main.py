@@ -18,6 +18,8 @@ from app.training_routes import router as training_router
 app.include_router(training_router)
 from app.evidence import router as evidence_router
 app.include_router(evidence_router)
+from app.funding import router as funding_router
+app.include_router(funding_router)
 app.add_middleware(UploadBodyLimit)
 app.add_middleware(CORSMiddleware, allow_origins=list(settings.origins),
                    allow_methods=['GET','POST','PUT','DELETE'], allow_headers=['Authorization','Content-Type'])

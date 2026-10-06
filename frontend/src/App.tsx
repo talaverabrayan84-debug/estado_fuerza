@@ -5,6 +5,7 @@ import {api, configError, demo, setDemoToken, supabase} from './api';
 import {Catalogs, Evaluation, Person, Role, roleLabels, states, User} from './types';
 import {Calendar,SessionDetail} from './pages/Training';
 import {Journal} from './pages/Journal';
+import {FundingJournal,FundingNotice} from './pages/FundingJournal';
 import {Imports} from './pages/Imports';
 import {useData} from './components';
 
@@ -35,11 +36,12 @@ export default function App(){
  return <Auth.Provider value={user}><div className="shell">
   <aside className="sidebar"><Link className="brand" to="/"><span className="brand-icon"><ShieldCheck size={25}/></span><span>Estado de Fuerza<small>Gestión de capacitación</small></span></Link>
    <div className="sidebar-label">ESPACIO DE TRABAJO</div>
-   <nav aria-label="Navegación principal">{worker?<NavLink end to={`/personal/${user.personal_id}`}><FileText size={20}/>Mi expediente</NavLink>:<><NavLink to="/estado-fuerza"><Users size={20}/>Estado de fuerza</NavLink><NavLink to="/alertas"><Bell size={20}/>Vigencia y alertas</NavLink></>}<NavLink to="/cursos"><ClipboardCheck size={20}/>Calendario de cursos</NavLink>{worker&&<NavLink to={`/personal/${user.personal_id}/bitacora`}><FileText size={20}/>Mi bitácora</NavLink>}{user.rol==='admin'&&<NavLink to="/carga-masiva"><Plus size={20}/>Carga masiva</NavLink>}</nav>
+   <nav aria-label="Navegación principal">{worker?<NavLink end to={`/personal/${user.personal_id}`}><FileText size={20}/>Mi expediente</NavLink>:<><NavLink to="/estado-fuerza"><Users size={20}/>Estado de fuerza</NavLink><NavLink to="/alertas"><Bell size={20}/>Vigencia y alertas</NavLink><NavLink to="/bitacora-fondos"><FileText size={20}/>Bitácora FASP y FOFISP</NavLink></>}<NavLink to="/cursos"><ClipboardCheck size={20}/>Calendario de cursos</NavLink>{worker&&<NavLink to={`/personal/${user.personal_id}/bitacora`}><FileText size={20}/>Mi bitácora</NavLink>}{user.rol==='admin'&&<NavLink to="/carga-masiva"><Plus size={20}/>Carga masiva</NavLink>}</nav>
    <div className="sidebar-note"><ClipboardCheck size={24}/><strong>Formación y seguimiento</strong><p>Organiza los cursos y consulta los avances de capacitación del personal.</p><span>Segunda fase</span></div>
    <div className="account"><div className="avatar">{initials(roleLabels[user.rol])}</div><div><strong>{roleLabels[user.rol]}</strong><small title={user.email}>{user.email}</small></div><button aria-label="Cerrar sesión" title="Cerrar sesión" className="icon-button" onClick={logout}><LogOut size={19}/></button></div>
   </aside>
   <div className="main-area"><header className="topbar"><span>Sistema de Gestión del Estado de Fuerza</span><span className="topbar-label">{roleLabels[user.rol]}</span></header>
+   {!worker&&<FundingNotice/>}
    {demo&&<div className="demo-banner"><CircleAlert size={16}/><span>Demostración local · Datos ficticios. Los cambios se reinician al detener el servicio.</span></div>}
    <main><Routes key={`${user.id}:${user.rol}:${location.pathname}`}>
     <Route path="/" element={<Navigate to={worker?`/personal/${user.personal_id}`:'/estado-fuerza'} replace/>}/>
@@ -49,6 +51,7 @@ export default function App(){
     <Route path="/personal/:id/editar" element={user.rol==='admin'?<EditPerson/>:<Navigate to="/" replace/>}/>
     <Route path="/personal/:id" element={<Detail/>}/>
     <Route path="/cursos" element={<Calendar user={user}/>}/>
+    <Route path="/bitacora-fondos" element={worker?<Navigate to="/" replace/>:<FundingJournal/>}/>
     <Route path="/cursos/sesiones/:id" element={<SessionDetail user={user}/>}/>
     <Route path="/personal/:id/bitacora" element={<Journal user={user}/>}/>
     <Route path="/carga-masiva" element={user.rol==='admin'?<Imports/>:<Navigate to="/" replace/>}/>
