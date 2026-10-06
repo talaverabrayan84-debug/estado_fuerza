@@ -70,4 +70,6 @@ La separación de entornos mantiene los datos de prueba fuera de una futura base
 
 ## Estado actual
 
+El 5 de octubre de 2026 se reactivó el proyecto que estaba pausado y se aplicó `004_bitacora_fondos.sql`. Se cargaron las hojas FASP y FOFISP del archivo proporcionado y la comparación completa de los valores guardados devolvió `true` para ambos fondos. La publicación del código actualizado en Vercel queda pendiente de completar el acceso de Git a GitHub y el autenticador solicitado por Vercel.
+
 El 24 de septiembre de 2026 se aplicaron las tres migraciones y el seed ficticio en `estado-fuerza-staging` (`oeauqqrjftikgzrwpyrk`). Las 43 comprobaciones de `verify_staging.sql` devolvieron `true`. Las siete cuentas ficticias de Authentication ya están creadas, confirmadas y vinculadas con `public.usuarios`. La API y la interfaz están desplegadas en Vercel con `DEMO_MODE=false`; falta ejecutar la aceptación integrada desde la URL pública y configurar el dominio estable en la sección URL Configuration de Supabase Auth si se desea probar redirecciones OAuth.

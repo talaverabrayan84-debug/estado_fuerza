@@ -5,13 +5,13 @@ import {api} from '../api';
 import {dateLabel,ErrorBox,Loading,today} from '../components';
 
 type Value=string|number|null;
-type Cell={key:string;col:string;row:number;span:[number,number];kind:'date'|'number'|'text';label:Value;style:CSSProperties};
+type Cell={key:string;col:string;row:number;span:[number,number];kind:'date'|'number'|'text';format:string;label:Value;style:CSSProperties};
 type Delivery={key:string;fund:string;course:string;due:string|null;days:number|null;status:string;received:string|null;source_received:boolean};
 type Sheet={fund:string;version:number;data:{values:Record<string,Value>;receipts:Record<string,string|null>};layout:{name:string;header:number;due_col:string;widths:number[];heights:number[];rows:Cell[][]};deliveries:Delivery[]};
 type Alerts={items:Delivery[];missing_dates:number;as_of:string};
 const statuses:Record<string,string>={recibida:'Recibida',sin_fecha:'Sin fecha de entrega',vencida:'Entrega vencida',hoy:'Entrega hoy','1_dia':'Entrega mañana','3_dias':'Entrega en 3 días o menos','7_dias':'Entrega en 7 días o menos',programada:'Programada'};
 const datePattern=/^\d{4}-\d{2}-\d{2}$/;
-function display(v:Value){return typeof v==='string'&&datePattern.test(v)?dateLabel(v):v??'';}
+function display(v:Value,format?:string){if(typeof v==='string'&&datePattern.test(v)){const [year,month,day]=v.split('-');if(format==='mm-dd-yy')return `${month}-${day}-${year.slice(-2)}`;return dateLabel(v);}return v??'';}
 
 function useFundingBook(){
  const [data,setData]=useState<{sheets:Sheet[]}|null>(null),[error,setError]=useState(''),[revision,setRevision]=useState(0);
@@ -45,6 +45,7 @@ export function FundingJournal(){
  const tableRef=useRef<HTMLDivElement>(null);
  const sheet=book.data?.sheets.find(s=>s.fund===fund);
  useEffect(()=>{const f=params.get('fund');if(f==='FASP'||f==='FOFISP')setFund(f);},[params]);
+ useEffect(()=>{if(sheet&&tableRef.current&&!params.get('delivery')){tableRef.current.scrollTop=sheet.layout.heights.slice(0,sheet.layout.header-1).reduce((a,b)=>a+b,0)*zoom;tableRef.current.scrollLeft=0;}},[sheet?.fund,zoom]);
  useEffect(()=>{if(sheet&&params.get('delivery'))tableRef.current?.querySelector(`[data-cell="${params.get('delivery')?.replace(/[^A-Z0-9]/g,'')}"]`)?.scrollIntoView({block:'center',inline:'center',behavior:'smooth'});},[sheet,params]);
  function saved(){setEdit(null);setMessage('Cambios guardados. Las alertas UMS se actualizaron.');book.reload();window.dispatchEvent(new Event('funding-changed'));}
  function select(f:string){setFund(f);setParams({fund:f});setMessage('');setEdit(null);}
@@ -56,8 +57,8 @@ export function FundingJournal(){
     <div className="funding-grid-scroll" ref={tableRef} tabIndex={0} aria-label="Bitácora con desplazamiento horizontal y vertical"><table className="funding-grid" style={{width:sheet.layout.widths.reduce((a,b)=>a+b,0)*zoom}}>
      <caption className="sr-only">Bitácora {fund} 2026 con los encabezados y celdas combinadas del archivo de referencia</caption>
      <colgroup>{sheet.layout.widths.map((w,i)=><col key={i} style={{width:w*zoom}}/>)}</colgroup>
-     <thead>{sheet.layout.rows.slice(0,sheet.layout.header).map((row,i)=><tr key={i} style={{height:sheet.layout.heights[i]*zoom}}>{row.map(c=><th key={c.key} rowSpan={c.span[0]} colSpan={c.span[1]} style={{...c.style,fontSize:Number(c.style.fontSize)*zoom}}>{display(c.label)}</th>)}</tr>)}</thead>
-     <tbody>{sheet.layout.rows.slice(sheet.layout.header).map((row,i)=><tr key={i} style={{height:sheet.layout.heights[i+sheet.layout.header]*zoom}}>{row.map(c=><td key={c.key} data-cell={c.key} rowSpan={c.span[0]} colSpan={c.span[1]} className={params.get('delivery')===c.key?'funding-target':''} style={{...c.style,fontSize:Number(c.style.fontSize)*zoom}}><button className="funding-cell" aria-label={`Editar ${c.key}: ${sheet.data.values[c.key]??'sin capturar'}`} onClick={()=>{setMessage('');setEdit({sheet,cell:c,section:'values'});}}>{display(sheet.data.values[c.key])||<span className="funding-blank">—</span>}</button></td>)}</tr>)}</tbody>
+     <thead>{sheet.layout.rows.slice(0,sheet.layout.header).map((row,i)=><tr key={i} style={{height:sheet.layout.heights[i]*zoom}}>{row.map(c=><th key={c.key} rowSpan={c.span[0]} colSpan={c.span[1]} style={{...c.style,fontSize:Number(c.style.fontSize)*zoom}}>{display(c.label,c.format)}</th>)}</tr>)}</thead>
+     <tbody>{sheet.layout.rows.slice(sheet.layout.header).map((row,i)=><tr key={i} style={{height:sheet.layout.heights[i+sheet.layout.header]*zoom}}>{row.map(c=><td key={c.key} data-cell={c.key} rowSpan={c.span[0]} colSpan={c.span[1]} className={params.get('delivery')===c.key?'funding-target':''} style={{...c.style,fontSize:Number(c.style.fontSize)*zoom}}><button className="funding-cell" aria-label={`Editar ${c.key}: ${sheet.data.values[c.key]??'sin capturar'}`} onClick={()=>{setMessage('');setEdit({sheet,cell:c,section:'values'});}}>{display(sheet.data.values[c.key],c.format)||<span className="funding-blank">—</span>}</button></td>)}</tr>)}</tbody>
     </table></div></section>
    <p className="footnote">Las alertas se actualizan cada minuto. Captura la fecha de entrega UMS en la columna {sheet.layout.due_col} y registra la recepción completa para cerrar el seguimiento.</p>
    <section className="table-panel funding-deliveries"><div className="panel-heading"><div><h2>Alertas y recepción de entregables UMS</h2><p className="muted">Avisos a 7, 3 y 1 días, el día de entrega y después del vencimiento.</p></div></div><div className="table-scroll"><table><thead><tr><th>Curso</th><th>Fecha de entrega</th><th>Seguimiento UMS</th><th>Recepción completa</th></tr></thead><tbody>{sheet.deliveries.map(d=><tr key={d.key}><td><button className="text-button" onClick={()=>setParams({fund,delivery:d.key})}>{d.course}</button></td><td>{d.due?dateLabel(d.due):'Sin fecha'}{d.days!==null&&!d.source_received&&!d.received&&<small>{d.days<0?`${-d.days} días de retraso`:d.days===0?'Entrega hoy':`Faltan ${d.days} días`}</small>}</td><td><span className={'badge funding-status-'+d.status}>{statuses[d.status]}</span></td><td>{d.received&&<small>Recibida: {dateLabel(d.received)}</small>}{d.source_received&&<small>Entrega registrada en la bitácora</small>}<button className="text-button" onClick={()=>{const cell=sheet.layout.rows.flat().find(c=>c.key===d.key)!;setEdit({sheet,cell,section:'receipts'});}}>{d.received?'Editar recepción':'Registrar recepción'}</button></td></tr>)}</tbody></table></div></section>
