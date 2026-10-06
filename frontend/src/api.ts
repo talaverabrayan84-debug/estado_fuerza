@@ -3,8 +3,10 @@ const loopback = (host:string) => ['localhost','127.0.0.1','[::1]'].includes(hos
 const requestedDemo = import.meta.env.VITE_DEMO_MODE === 'true';
 export const demo = requestedDemo && loopback(window.location.hostname);
 const base = (import.meta.env.VITE_API_URL?.trim() || (demo?'http://127.0.0.1:8000/api':'')).replace(/\/$/,'');
-const url = import.meta.env.VITE_SUPABASE_URL?.trim();
-const key = import.meta.env.VITE_SUPABASE_ANON_KEY?.trim();
+const projectUrl = import.meta.env.VITE_SUPABASE_PROJECT_URL?.trim();
+const url = projectUrl || import.meta.env.VITE_SUPABASE_URL?.trim();
+// La pareja nueva evita mezclar la URL de un proyecto con la clave del anterior.
+const key = projectUrl ? import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY?.trim() : import.meta.env.VITE_SUPABASE_ANON_KEY?.trim();
 let configurationError = '';
 let client:SupabaseClient|null = null;
 try {

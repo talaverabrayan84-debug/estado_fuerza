@@ -5,13 +5,14 @@ from dataclasses import dataclass
 from dotenv import load_dotenv
 
 load_dotenv()
+project_url = os.getenv('SUPABASE_PROJECT_URL', '').strip()
 
 @dataclass(frozen=True)
 class Settings:
     environment: str = os.getenv('APP_ENV', 'production')
     demo: bool = os.getenv('DEMO_MODE', 'false').lower() == 'true'
-    supabase_url: str = os.getenv('SUPABASE_URL', '').rstrip('/')
-    supabase_key: str = os.getenv('SUPABASE_ANON_KEY', '')
+    supabase_url: str = (project_url or os.getenv('SUPABASE_URL', '')).rstrip('/')
+    supabase_key: str = os.getenv('SUPABASE_PUBLISHABLE_KEY', '') if project_url else os.getenv('SUPABASE_ANON_KEY', '')
     origins: tuple = tuple(os.getenv('FRONTEND_ORIGINS', 'http://localhost:5173,http://127.0.0.1:5173').split(','))
 
     def validate(self):
