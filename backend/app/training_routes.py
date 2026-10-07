@@ -1,5 +1,4 @@
 import csv
-from datetime import date
 from io import BytesIO, StringIO
 from pathlib import PurePath
 from uuid import UUID
@@ -8,6 +7,8 @@ from fastapi.responses import Response
 from app.core.security import Context, allow, context, own_or_staff
 from app.training_schemas import CursoIn, SesionIn, InscripcionIn, BitacoraIn
 from app.services.imports import MAX_BYTES, HEADERS, read_file, build_preview, template, target_valid
+from app.services.uploads import upload_filename
+from app.services.calendar_dates import CalendarDate
 
 router=APIRouter(prefix='/api')
 
@@ -29,7 +30,7 @@ def update_course(course_id:UUID,data:CursoIn,ctx:Context=Depends(context)):
     return ctx.repo.save_course(data.model_dump(mode='json'),str(course_id))
 
 @router.get('/curso-sesiones')
-def sessions(desde:date,hasta:date,offset:int=Query(0,ge=0),limit:int=Query(100,ge=1,le=500),ctx:Context=Depends(context)):
+def sessions(desde:CalendarDate,hasta:CalendarDate,offset:int=Query(0,ge=0),limit:int=Query(100,ge=1,le=500),ctx:Context=Depends(context)):
     if hasta<desde or (hasta-desde).days>366: raise HTTPException(422,'Consulte un rango de hasta un año, con término posterior al inicio.')
     return page(ctx.repo.sessions(desde.isoformat(),hasta.isoformat(),offset,limit+1),offset,limit)
 
@@ -97,7 +98,7 @@ def import_template(destino:str,formato:str='csv',ctx:Context=Depends(context)):
 @router.post('/carga-masiva/previsualizar',status_code=201)
 def preview(destino:str=Form(...),archivo:UploadFile=File(...),ctx:Context=Depends(context)):
     allow(ctx,'admin'); target_valid(destino)
-    name=PurePath((archivo.filename or '').replace('\\','/')).name[:200]
+    name=upload_filename(archivo.filename)
     content=archivo.file.read(MAX_BYTES+1)
     rows=read_file(content,name,destino)
     return ctx.repo.stage_import({'nombre_archivo':name,'tipo_archivo':PurePath(name).suffix[1:].lower(),

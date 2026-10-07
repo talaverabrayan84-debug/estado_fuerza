@@ -66,8 +66,17 @@ class SupabaseRepository(TrainingRepository):
         return result[0]
 
     def history(self, person_id):
-        return self.request('GET', '/rest/v1/competencias_basicas',
-                            params={'personal_id': f'eq.{person_id}', 'select': '*', 'order': 'fecha_certificacion.desc,created_at.desc'})
+        rows = []
+        offset = 0
+        while True:
+            page = self.request('GET', '/rest/v1/competencias_basicas', params={
+                'personal_id': f'eq.{person_id}', 'select': '*',
+                'order': 'fecha_certificacion.desc,activo.desc,created_at.desc,id.desc',
+                'offset': offset, 'limit': 500})
+            rows.extend(page)
+            if len(page) < 500:
+                return rows
+            offset += 500
 
     def add_competencia(self, data):
         return self.request('POST', '/rest/v1/rpc/registrar_competencia', json={'datos': data})

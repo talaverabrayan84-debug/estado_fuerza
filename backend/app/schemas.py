@@ -1,9 +1,9 @@
 import re
-from datetime import date
 from typing import Literal
 from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from app.services.vigencia import hoy_local
+from app.services.calendar_dates import CalendarDate
 
 Role = Literal['admin', 'capacitacion', 'trabajador']
 
@@ -48,7 +48,7 @@ class CompetenciaIn(BaseModel):
     model_config = ConfigDict(extra='forbid', str_strip_whitespace=True)
     personal_id: UUID
     institucion_evaluadora: str = Field(min_length=2, max_length=150)
-    fecha_certificacion: date
+    fecha_certificacion: CalendarDate
     resultado: Literal['aprobado', 'no_aprobado']
     folio: str = Field(min_length=1, max_length=60)
 

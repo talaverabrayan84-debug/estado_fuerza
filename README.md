@@ -2,7 +2,7 @@
 
 Implementación de las fases 1 y 2 definidas en `Arquitectura_Sistema_Estado_de_Fuerza.docx`, versión 1.0. Incluye React 18 + TypeScript + Tailwind, FastAPI y migraciones PostgreSQL para Supabase.
 
-La demostración local permite recorrer los tres perfiles con datos ficticios. El proyecto de staging de Supabase ya contiene las migraciones, los catálogos ficticios y las políticas RLS; sus 43 comprobaciones de estructura y seguridad fueron aprobadas. Falta crear y vincular las cuentas ficticias de Authentication y desplegar la API y la interfaz en Vercel.
+La demostración local permite recorrer los tres perfiles con datos ficticios. El sistema está publicado en [Vercel](https://estado-fuerza-web-staging.vercel.app), conectado al proyecto Supabase `estado-fuerza-2026`. Se instalaron las cuatro migraciones y las bitácoras del Excel de referencia; el ingreso con la cuenta administradora de pruebas y la lectura de ambas hojas se verificaron desde la URL pública. Consulta [el estado del entorno](docs/STAGING.md) y [la revisión de pruebas y correcciones](docs/VALIDACION_QA.md).
 
 ## Funciones incluidas
 
@@ -20,6 +20,8 @@ La demostración local permite recorrer los tres perfiles con datos ficticios. E
 - Bitácora del trabajador, con captura y edición de actividades propias.
 - Evidencia privada por actividad: PDF, PNG o JPG, hasta 2 MB.
 - Importación CSV/XLSX de personal y competencias básicas: plantillas, revisión por fila, confirmación transaccional y reporte de resultados.
+- Bitácoras institucionales FASP y FOFISP con la estructura, celdas combinadas y formato del Excel de referencia; edición con control de versión.
+- Alertas de entregas UMS dentro del sistema a 7, 3 y 1 días, el día de entrega y después del vencimiento; cierre por recepción completa.
 
 Consulta [el alcance y recorrido de la fase 2](docs/FASE2.md).
 
@@ -76,6 +78,7 @@ Desde `frontend`:
 npm ci
 npm run dev
 npm run build
+npm test
 npm run test:database
 ```
 
@@ -85,6 +88,6 @@ La documentación OpenAPI está en `http://127.0.0.1:8000/docs`. `requirements-l
 
 La fase 2 incluye calendario, bitácora, evidencias e importación de las dos entidades ya implementadas: personal y competencias básicas. El registro especializado de formación inicial y otras certificaciones aún requiere su módulo propio; clasificar un curso como formación inicial no crea ese expediente de certificación.
 
-Notificaciones automáticas, cron, gráficas y reportes generales corresponden a la fase 3. El reporte CSV de una importación forma parte de la fase 2. La vigencia y el estado de las sesiones se calculan al consultar.
+Las alertas UMS se consultan dentro del sistema y se actualizan cada minuto. Envíos por correo o SMS, cron, gráficas y reportes generales corresponden a la fase 3. El reporte CSV de una importación forma parte de la fase 2. La vigencia y el estado de las sesiones se calculan al consultar.
 
 Consulta [el análisis y las decisiones de implementación](docs/ANALISIS_ARQUITECTURA.md) y [los resultados de validación](docs/VALIDACION.md).

@@ -1,5 +1,6 @@
 """Datos ficticios en memoria: habilitación explícita, nunca para producción."""
 from copy import deepcopy
+from calendar import monthrange
 from datetime import timedelta
 from threading import RLock
 from uuid import uuid4
@@ -29,7 +30,8 @@ class DemoStore:
                 'adscripcion': 'Unidad de demostración', 'cargo_id': None, 'grado_id': None, 'estatus': 'activo', 'updated_at': timestamp()}
             if i == 4: continue
             end = hoy_local() + timedelta(days=[-25, 35, 75, 400, 0, 600][i])
-            cert = end.replace(year=end.year - 3, day=min(end.day, 28))
+            cert_year = end.year - 3
+            cert = end.replace(year=cert_year, day=min(end.day, monthrange(cert_year, end.month)[1]))
             self.evaluations.append({'id': str(uuid4()), 'personal_id': pid, 'fecha_certificacion': cert.isoformat(),
                 'institucion_evaluadora': 'Institución de prueba', 'folio': f'DEMO-CB-{i+1:03}',
                 'resultado': 'no_aprobado' if i == 5 else 'aprobado', 'activo': True})
@@ -49,7 +51,9 @@ class DemoRepository(DemoTraining):
     def row(self, p):
         active = next((e for e in self.store.evaluations if e['personal_id'] == p['id'] and e['activo']), None)
         corp = next(c['nombre'] for c in self.store.catalogs['corporaciones'] if c['id'] == p['corporacion_id'])
-        return {**deepcopy(p), 'personal_id': p['id'], 'corporacion': corp, 'cargo': None, 'grado': None,
+        cargo = next((c['nombre'] for c in self.store.catalogs['cargos'] if c['id'] == p.get('cargo_id')), None)
+        grado = next((c['nombre'] for c in self.store.catalogs['grados'] if c['id'] == p.get('grado_id')), None)
+        return {**deepcopy(p), 'personal_id': p['id'], 'corporacion': corp, 'cargo': cargo, 'grado': grado,
                 'competencia_id': active['id'] if active else None,
                 'fecha_certificacion': active['fecha_certificacion'] if active else None,
                 'resultado': active['resultado'] if active else None, **detalle_vigencia(active)}
@@ -85,7 +89,7 @@ class DemoRepository(DemoTraining):
         self.get_personal(person_id)
         with self.store.lock:
             return [{**deepcopy(e), 'fecha_vencimiento': detalle_vigencia(e)['fecha_vencimiento']}
-                    for e in sorted(self.store.evaluations, key=lambda e:e['fecha_certificacion'], reverse=True) if e['personal_id'] == person_id]
+                    for e in sorted(reversed(self.store.evaluations), key=lambda e:(e['fecha_certificacion'],e['activo']), reverse=True) if e['personal_id'] == person_id]
 
     def add_competencia(self, data):
         with self.store.lock:

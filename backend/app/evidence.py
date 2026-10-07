@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from fastapi.responses import Response
 from app.core.config import settings
 from app.core.security import Context, context, allow
+from app.services.uploads import upload_filename
 
 router=APIRouter(prefix='/api/bitacora')
 BUCKET='bitacora-evidencias'
@@ -38,7 +39,7 @@ def upload(entry_id:UUID,archivo:UploadFile=File(...),ctx:Context=Depends(contex
     if evidence(ctx,eid): raise HTTPException(409,'La actividad ya tiene una evidencia adjunta.')
     content=archivo.file.read(MAX_SIZE+1)
     if not content or len(content)>MAX_SIZE: raise HTTPException(413,'La evidencia debe pesar entre 1 byte y 2 MB.')
-    name=PurePath((archivo.filename or '').replace('\\','/')).name[:200]
+    name=upload_filename(archivo.filename)
     ext=PurePath(name).suffix.lower()
     if ext=='.pdf' and content.startswith(b'%PDF-'): mime='application/pdf';ext='pdf'
     elif ext=='.png' and content.startswith(b'\x89PNG\r\n\x1a\n'): mime='image/png';ext='png'

@@ -1,9 +1,9 @@
-from datetime import date
 from decimal import Decimal
 from typing import Literal
 from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from app.services.vigencia import hoy_local
+from app.services.calendar_dates import CalendarDate
 
 class Input(BaseModel):
     model_config = ConfigDict(extra='forbid', str_strip_whitespace=True)
@@ -24,8 +24,8 @@ class CursoIn(Input):
 
 class SesionIn(Input):
     curso_id: UUID
-    fecha_inicio: date
-    fecha_fin: date
+    fecha_inicio: CalendarDate
+    fecha_fin: CalendarDate
     sede: str = Field(min_length=2, max_length=150)
     modalidad: Literal['presencial', 'en_linea', 'mixta']
     cupo: int = Field(ge=1, le=10000)
@@ -45,7 +45,7 @@ class InscripcionIn(Input):
 
 class BitacoraIn(Input):
     sesion_id: UUID | None = None
-    fecha: date
+    fecha: CalendarDate
     tipo_actividad: Literal['avance', 'incidencia', 'entrega', 'observacion']
     descripcion: str = Field(min_length=3, max_length=5000)
 
