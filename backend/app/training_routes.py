@@ -1,4 +1,5 @@
 import csv
+import json
 from io import BytesIO, StringIO
 from pathlib import PurePath
 from uuid import UUID
@@ -6,7 +7,7 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Upload
 from fastapi.responses import Response
 from app.core.security import Context, allow, context, own_or_staff
 from app.training_schemas import CursoIn, SesionIn, InscripcionIn, BitacoraIn
-from app.services.imports import MAX_BYTES, HEADERS, read_file, build_preview, template, target_valid
+from app.services.imports import MAX_BYTES, HEADERS, read_file, inspect_file, build_preview, template, target_valid
 from app.services.uploads import upload_filename
 from app.services.calendar_dates import CalendarDate
 
@@ -96,13 +97,24 @@ def import_template(destino:str,formato:str='csv',ctx:Context=Depends(context)):
     return Response(content,media_type=media,headers={'Content-Disposition':f'attachment; filename="plantilla-{destino}.{formato}"'})
 
 @router.post('/carga-masiva/previsualizar',status_code=201)
-def preview(destino:str=Form(...),archivo:UploadFile=File(...),ctx:Context=Depends(context)):
+def preview(destino:str=Form(...),archivo:UploadFile=File(...),modo:str=Form('combinar'),
+            hoja:str|None=Form(None),fila_encabezado:int|None=Form(None,ge=1,le=201),
+            mapeo:str|None=Form(None),ctx:Context=Depends(context)):
     allow(ctx,'admin'); target_valid(destino)
     name=upload_filename(archivo.filename)
     content=archivo.file.read(MAX_BYTES+1)
-    rows=read_file(content,name,destino)
+    try: mapping=json.loads(mapeo) if mapeo is not None else None
+    except (ValueError,TypeError): raise HTTPException(422,'El mapeo no es un objeto JSON válido.')
+    if mapeo is not None and not isinstance(mapping,dict): raise HTTPException(422,'El mapeo debe ser un objeto JSON.')
+    rows,analysis=read_file(content,name,destino,sheet_name=hoja,header_row=fila_encabezado,mapping=mapping,with_analysis=True)
     return ctx.repo.stage_import({'nombre_archivo':name,'tipo_archivo':PurePath(name).suffix[1:].lower(),
-        'tabla_destino':destino,'filas':build_preview(rows,destino,ctx.repo)})
+        'tabla_destino':destino,'filas':build_preview(rows,destino,ctx.repo,modo,analysis)})
+
+@router.post('/carga-masiva/analizar')
+def analyze_import(destino:str=Form(...),archivo:UploadFile=File(...),hoja:str|None=Form(None),
+                   fila_encabezado:int|None=Form(None,ge=1,le=201),ctx:Context=Depends(context)):
+    allow(ctx,'admin'); target_valid(destino)
+    return inspect_file(archivo.file.read(MAX_BYTES+1),upload_filename(archivo.filename),destino,hoja,fila_encabezado)
 
 @router.get('/carga-masiva')
 def imports(offset:int=Query(0,ge=0),limit:int=Query(25,ge=1,le=100),ctx:Context=Depends(context)):
@@ -124,12 +136,14 @@ def report(import_id:UUID,ctx:Context=Depends(context)):
     allow(ctx,'admin')
     record=ctx.repo.import_detail(str(import_id))
     out=StringIO(); writer=csv.writer(out)
-    writer.writerow(['fila','identificador','accion','resultado','errores'])
+    writer.writerow(['fila','identificador','accion','resultado','errores','modo','normalizados','cambios','avisos'])
     def safe(v):
         s=str(v)
         return "'"+s if s.lstrip().startswith(('=','+','-','@','\t','\r')) else s
     for r in record['filas']:
         writer.writerow([r['fila'],safe(r['identificador']),r['accion'],
-            'error' if r['errores'] else 'procesado' if record['estado']=='confirmada' else 'validado',safe(' | '.join(r['errores']))])
+            'error' if r['errores'] else 'procesado' if record['estado']=='confirmada' else 'validado',safe(' | '.join(r['errores'])),
+            r.get('modo','combinar'),safe(json.dumps(r.get('normalizados',{}),ensure_ascii=False)),
+            safe(json.dumps(r.get('cambios',[]),ensure_ascii=False)),safe(' | '.join(r.get('avisos',[])))])
     return Response(out.getvalue().encode('utf-8-sig'),media_type='text/csv',
         headers={'Content-Disposition':'attachment; filename="reporte-carga.csv"'})
