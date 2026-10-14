@@ -121,7 +121,7 @@ def test_invalid_files_formula_and_original_row_number(client,auth):
     assert r['filas'][0]['fila']==3 and r['registros_error']==1
     assert preview(client,h,rows=[['bad'],['value']]).status_code==422
     r=preview(client,h,rows=[HEAD,['DEMO00001','','Corporación de ejemplo A','Unidad']]).json()
-    assert r['registros_error']==1
+    assert r['registros_error']==0  # Blank update cells preserve existing values.
 
 def test_evaluations_import_duplicate_and_history(client,auth):
     h=auth();head=['cuip','institucion_evaluadora','fecha_certificacion','resultado','folio']

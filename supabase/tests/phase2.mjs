@@ -81,6 +81,19 @@ await db.query('update personal set adscripcion=$1 where id=$2',['Cambio concurr
 await denied(()=>rpc('confirmar_carga',{carga:stale.id}),'P0001');
 const bad=await stage([{...row,errores:['Error de ejemplo']}]);
 await denied(()=>rpc('confirmar_carga',{carga:bad.id}),'22023');
+// The API materializes a partial update against the current baseline. Import
+// analysis metadata lives in filas JSON and requires no schema migration.
+const current=(await db.query('select *,updated_at::text as version from personal where id=$1',[P])).rows[0];
+const normalized=await stage([{...row,personal_id:P,version:current.version,
+  datos:{...current,adscripcion:'Unidad normalizada'},accion:'actualizar',modo:'actualizar',
+  origen:{cuip:current.cuip,adscripcion:' Unidad normalizada '},
+  normalizados:{cuip:current.cuip,adscripcion:'Unidad normalizada'},
+  cambios:[{campo:'adscripcion',anterior:current.adscripcion,nuevo:'Unidad normalizada'}],
+  analisis:{hoja:'Personal',fila_encabezado:3,mapeo:{cuip:0,adscripcion:1},columnas_omitidas:['Notas']}}]);
+check(normalized.filas[0].analisis.hoja==='Personal','Import analysis metadata persists');
+check((await rpc('confirmar_carga',{carga:normalized.id})).registros_procesados===1,'Normalized partial update confirms');
+const saved=(await db.query('select * from personal where id=$1',[P])).rows[0];
+check(saved.adscripcion==='Unidad normalizada'&&saved.nombre_completo===current.nombre_completo&&saved.corporacion_id===current.corporacion_id&&saved.cuip===current.cuip,'Partial import retains absent required fields');
 await login(C);check((await db.query('select * from carga_archivos')).rows.length===0,'Imports admin only');
 await denied(()=>stage([row]));await denied(()=>rpc('confirmar_carga',{carga:batch.id}));
 await login(W);await denied(()=>stage([row]));
